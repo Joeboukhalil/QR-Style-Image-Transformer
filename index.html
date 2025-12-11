@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Image to QR-Style Generator</title>
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    background:#f3f3f3;
+    padding:20px;
+    text-align:center;
+  }
+  #canvas{
+    background:white;
+    margin-top:20px;
+    border:1px solid #ccc;
+  }
+  .btn{
+    padding:10px 20px;
+    background:black;
+    color:white;
+    border:none;
+    cursor:pointer;
+    border-radius:6px;
+    margin:5px;
+  }
+</style>
+</head>
+<body>
+
+<h2>Image ➜ QR-Style Generator</h2>
+<input type="file" id="upload" accept="image/*">
+<br>
+<button class="btn" onclick="downloadImage()">Download Result</button>
+
+<canvas id="canvas" width="600" height="600"></canvas>
+
+<script>
+const upload = document.getElementById("upload");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+upload.addEventListener("change", function(){
+    const file = this.files[0];
+    if(!file) return;
+
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+
+    img.onload = () => applyQRStyle(img);
+});
+
+function applyQRStyle(img){
+    const size = 600;
+    const qrPixels = 60;   // grid resolution
+    const block = size / qrPixels;
+
+    // draw original image into tiny grid
+    const smallCanvas = document.createElement("canvas");
+    smallCanvas.width = qrPixels;
+    smallCanvas.height = qrPixels;
+    const sctx = smallCanvas.getContext("2d");
+
+    // Fit image
+    sctx.drawImage(img, 0, 0, qrPixels, qrPixels);
+
+    const data = sctx.getImageData(0, 0, qrPixels, qrPixels).data;
+
+    // Clear output
+    ctx.clearRect(0,0,size,size);
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0,0,size,size);
+
+    // Draw QR-like image blocks
+    for(let y=0; y<qrPixels; y++){
+        for(let x=0; x<qrPixels; x++){
+            const i = (y * qrPixels + x) * 4;
+            const r = data[i];
+            const g = data[i+1];
+            const b = data[i+2];
+            // brightness -> dot strength
+            const brightness = (r+g+b)/3;
+
+            // convert brightness to black level
+            if(brightness < 128){
+                ctx.fillStyle = "#000";
+                ctx.fillRect(x*block, y*block, block, block);
+            } else {
+                // Slight noise to make it look real QR
+                if(Math.random() < 0.05){
+                    ctx.fillStyle = "#000";
+                    ctx.fillRect(x*block, y*block, block, block);
+                }
+            }
+        }
+    }
+
+    drawQRMarkers();
+}
+
+// adds the 3 big QR finder squares
+function drawQRMarkers(){
+    const block = canvas.width / 60;
+
+    function drawFinder(x,y){
+        ctx.fillStyle = "#000";
+        ctx.fillRect(x, y, block*7, block*7);
+
+        ctx.fillStyle="#fff";
+        ctx.fillRect(x+block, y+block, block*5, block*5);
+
+        ctx.fillStyle="#000";
+        ctx.fillRect(x+block*2, y+block*2, block*3, block*3);
+    }
+
+    drawFinder(0,0);
+    drawFinder(canvas.width - block*7, 0);
+    drawFinder(0, canvas.height - block*7);
+}
+
+function downloadImage(){
+    const link = document.createElement("a");
+    link.download = "qr_style.png";
+    link.href = canvas.toDataURL();
+    link.click();
+}
+</script>
+
+</body>
+</html>
